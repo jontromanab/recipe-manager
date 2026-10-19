@@ -1,0 +1,25 @@
+# Assignment brief: not part of the submission
+assignment.md
+ASSIGNMENT.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Local data
+backend/data/
+*.db
+
+# Node
+node_modules/
+frontend/dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+.env
+*.tsbuildinfo

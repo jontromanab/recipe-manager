@@ -1,0 +1,18 @@
+[project]
+name = "recipe-manager-api"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "sqlalchemy>=2.0",
+  "pydantic-settings>=2.4",
+  "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore:Using .httpx. with .starlette.testclient. is deprecated"]

@@ -1,0 +1,26 @@
+services:
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: sqlite:////data/recipes.db
+      SEED_ON_STARTUP: "true"
+    volumes:
+      - recipe-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "8000:8000"  # optional: direct API access, docs at /docs
+
+  web:
+    build: ./frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  recipe-data:
