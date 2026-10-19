@@ -132,6 +132,8 @@ class TestSearch:
             ("tomato soup", ["Tomato Soup"]),    # every term must match
             ("tomato anchovy", []),
             ("", ["100% Rye", "Caesar Salad", "Tomato Soup"]),
+            ("   ", ["100% Rye", "Caesar Salad", "Tomato Soup"]),  # whitespace-only = no filter
+            ("  soup  ", ["Tomato Soup"]),                         # surrounding spaces ignored
             ("%", ["100% Rye"]),                 # LIKE wildcards are literal
             ("_", ["100% Rye"]),
             ("nothing", []),
@@ -146,6 +148,7 @@ class TestSearch:
         assert [i.title for i in bistro.list(tag="soup")[0]] == ["Tomato Soup"]
         assert bistro.list(tag="sou")[1] == 0
         assert bistro.list(tag="SALAD")[1] == 1
+        assert bistro.list(tag="   ")[1] == 3  # whitespace-only tag = no filter
 
 
 class TestPagination:

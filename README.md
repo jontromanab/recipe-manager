@@ -72,7 +72,7 @@ Configuration is read from environment variables (see `backend/app/config.py`):
 ## Tests
 
 ```bash
-cd backend && .venv/bin/pytest -q          # 97 tests: API, repository, schemas, scaling
+cd backend && .venv/bin/pytest -q          # 100 tests: API, repository, schemas, scaling
 cd frontend && npm test                    # 21 tests: quantity and yield formatting
 ```
 

@@ -45,7 +45,7 @@ make restore API-only.
 
 ## How the work was checked
 
-- Claude wrote tests alongside the code: 97 backend tests (pytest) and 21
+- Claude wrote tests alongside the code: 100 backend tests (pytest) and 21
   frontend tests (vitest).
 - It ran the full stack with `docker compose` and called the API with
   `curl`: seed data, cross-org 404, scaling, viewer 403, data kept across a

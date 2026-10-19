@@ -143,6 +143,12 @@ class TestListAndSearch:
     def test_bad_list_params_422(self, client, params):
         assert client.get("/api/recipes", params=params, headers=auth("bistro_viewer")).status_code == 422
 
+    def test_whitespace_only_search_returns_all(self, client, create):
+        create(title="A")
+        create(title="B")
+        r = client.get("/api/recipes", params={"q": "   ", "tag": "  "}, headers=auth("bistro_viewer"))
+        assert r.status_code == 200 and r.json()["total"] == 2
+
     def test_search_by_ingredient_and_tag(self, client, create):
         create(title="Pesto", tags=["sauce"], ingredients=[{"quantity": 2, "unit": "cup", "name": "basil"}])
         create(title="Stock")
