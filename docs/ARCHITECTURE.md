@@ -90,9 +90,10 @@ would block everyone else.
 
 ### 5. Soft delete with restore
 
-`DELETE` sets `deleted_at`. The UI shows an **Undo** banner that calls
-`POST /restore`. This is better on a busy line than an "Are you sure?"
-dialog. Deleted recipes behave as missing (404) everywhere else. There's no
+`DELETE` sets `deleted_at`. In the UI, Delete first asks "Delete this
+recipe?" inline (no browser pop-up). After deleting, an **Undo** banner calls
+`POST /restore`, as a second safety net. Deleted recipes behave as missing
+(404) everywhere else. There's no
 "trash" screen and no purge job; those come later if needed.
 
 ### 6. Scaling on the server, as a pure function
@@ -141,11 +142,17 @@ database to pay for at this size.
   query lives in the URL, so back/forward and shared links work.
 - **Cook mode:** large type, two columns on tablets (ingredients stay on
   screen while steps scroll), one column on phones. Tap an ingredient to
-  check it off; tap a step or use Next/Previous to track progress. Scale
+  check it off. Steps work the same way, in any order; the first unchecked
+  step is highlighted and a "Done with step N" button checks it off. Scale
   buttons from ½× to 4×. The screen is kept awake (Wake Lock API) where the
   browser supports it. Dark mode follows the system.
 - **Edit:** structured rows for ingredients and steps with reorder and
-  remove, inline validation errors from the API, and conflict handling.
+  remove, and conflict handling. Validation errors from the API appear
+  under the field they belong to. Because blank rows are dropped before
+  sending, the form maps the API's row numbers back to the rows on screen
+  (`lib/formErrors.ts`).
+- **Print:** a print stylesheet turns cook mode into a black-on-white
+  station card with no buttons, at the current scale.
 - Switching user remounts all pages, so nothing from the previous
   restaurant stays on screen.
 
@@ -156,10 +163,11 @@ screens, React Query or Redux would add more than it saves.
 
 | Layer | Where | What |
 |---|---|---|
-| Pure logic | `test_scaling.py`, `test_schemas.py`, `format.test.ts` | scaling math and limits, validation rules, quantity formatting |
+| Pure logic | `test_scaling.py`, `test_schemas.py`, `format.test.ts`, `formErrors.test.ts` | scaling math and limits, validation rules, quantity formatting, error-to-field mapping |
+| Components | `RecipeView.test.tsx`, `RecipeEdit.test.tsx` (React Testing Library) | step check-off, scale request, delete confirmation, viewer can't see edit/delete, inline field errors on the right row, cleaned-up form data |
 | Data access | `test_repository.py` | tenant isolation, soft delete and restore, version conflicts including the race, search (title, ingredient, tag, multi-word, wildcard escaping), pagination |
 | HTTP | `test_api_recipes.py` | auth (401/403), full CRUD round trip, 404 for every method on other orgs, 409 body, 422 details, query-param limits, scaling endpoint, seed idempotence |
-| End to end | `e2e/smoke_test.py` | real browser against `docker compose`: search, scaling, conflict, validation, delete/undo, switching orgs, phone layout |
+| End to end | `e2e/smoke_test.py` | real browser against `docker compose`: search, scaling, conflict, inline validation, delete confirm and undo, print layout, switching orgs, phone layout |
 
 Each backend test gets a fresh in-memory SQLite database through
 `create_app(Settings(database_url="sqlite://"))`, so tests are isolated and

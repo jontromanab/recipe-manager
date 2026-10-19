@@ -7,7 +7,13 @@ import type { Recipe } from "../types";
 
 const SCALES = [0.5, 1, 2, 3, 4];
 
-/** Cook mode: large type, tap to check off ingredients and track the current step. */
+function toggleIn(set: Set<number>, i: number): Set<number> {
+  const next = new Set(set);
+  next.has(i) ? next.delete(i) : next.add(i);
+  return next;
+}
+
+/** Cook mode: large type, tap to check off ingredients and steps. */
 export default function RecipeView() {
   const { id } = useParams();
   const recipeId = Number(id);
@@ -17,8 +23,9 @@ export default function RecipeView() {
   const [scale, setScale] = useState(1);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  const [checked, setChecked] = useState<Set<number>>(new Set());
-  const [currentStep, setCurrentStep] = useState(0);
+  const [doneIngredients, setDoneIngredients] = useState<Set<number>>(new Set());
+  const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,12 +57,8 @@ export default function RecipeView() {
   }
   if (!recipe) return <p className="muted">Loading…</p>;
 
-  const toggle = (i: number) =>
-    setChecked((prev) => {
-      const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
-      return next;
-    });
+  // The highlighted step is the first one not yet checked off.
+  const current = recipe.steps.findIndex((_, i) => !doneSteps.has(i));
 
   const remove = async () => {
     try {
@@ -81,12 +84,24 @@ export default function RecipeView() {
         </div>
         {me?.role === "editor" && (
           <div className="actions">
-            <Link to={`/recipes/${recipe.id}/edit`} className="button">
-              Edit
-            </Link>
-            <button className="danger" onClick={remove}>
-              Delete
-            </button>
+            {confirmingDelete ? (
+              <div className="confirm" role="alertdialog" aria-label="Confirm delete">
+                <span>Delete this recipe?</span>
+                <button className="danger-solid" onClick={remove}>
+                  Yes, delete
+                </button>
+                <button onClick={() => setConfirmingDelete(false)}>Cancel</button>
+              </div>
+            ) : (
+              <>
+                <Link to={`/recipes/${recipe.id}/edit`} className="button">
+                  Edit
+                </Link>
+                <button className="danger" onClick={() => setConfirmingDelete(true)}>
+                  Delete
+                </button>
+              </>
+            )}
           </div>
         )}
       </header>
@@ -94,7 +109,7 @@ export default function RecipeView() {
       <div className="scale" role="group" aria-label="Scale recipe">
         <span>Scale</span>
         {SCALES.map((s) => (
-          <button key={s} className={s === scale ? "selected" : ""} onClick={() => setScale(s)}>
+          <button key={s} aria-pressed={s === scale} className={s === scale ? "selected" : ""} onClick={() => setScale(s)}>
             {s === 0.5 ? "½" : s}×
           </button>
         ))}
@@ -106,8 +121,12 @@ export default function RecipeView() {
           <ul className="ingredients">
             {recipe.ingredients.map((line, i) => (
               <li key={i}>
-                <button className={`ingredient${checked.has(i) ? " done" : ""}`} onClick={() => toggle(i)}>
-                  <span className="amount">{formatAmount(line)}</span>
+                <button
+                  className={`ingredient${doneIngredients.has(i) ? " done" : ""}`}
+                  aria-pressed={doneIngredients.has(i)}
+                  onClick={() => setDoneIngredients((s) => toggleIn(s, i))}
+                >
+                  <span className="amount">{formatAmount(line)}</span>{" "}
                   <span>
                     {line.name}
                     {line.note && <span className="note">, {line.note}</span>}
@@ -124,26 +143,29 @@ export default function RecipeView() {
             {recipe.steps.map((step, i) => (
               <li key={i}>
                 <button
-                  className={`step${i === currentStep ? " current" : ""}${i < currentStep ? " done" : ""}`}
-                  onClick={() => setCurrentStep(i)}
+                  className={`step${i === current ? " current" : ""}${doneSteps.has(i) ? " done" : ""}`}
+                  aria-pressed={doneSteps.has(i)}
+                  onClick={() => setDoneSteps((s) => toggleIn(s, i))}
                 >
-                  <span className="num">{i + 1}</span>
-                  <span>{step}</span>
+                  <span className="num">
+                    <span className="n">{i + 1}</span>
+                  </span>{" "}
+                  <span className="text">{step}</span>
                 </button>
               </li>
             ))}
           </ol>
           <div className="step-nav">
-            <button disabled={currentStep === 0} onClick={() => setCurrentStep((s) => s - 1)}>
-              ← Previous step
+            <button disabled={doneSteps.size === 0} onClick={() => setDoneSteps(new Set())}>
+              Reset steps
             </button>
-            <button
-              className="primary"
-              disabled={currentStep >= recipe.steps.length - 1}
-              onClick={() => setCurrentStep((s) => s + 1)}
-            >
-              Next step →
-            </button>
+            {current === -1 ? (
+              <span className="all-done">All steps done ✓</span>
+            ) : (
+              <button className="primary" onClick={() => setDoneSteps((s) => toggleIn(s, current))}>
+                Done with step {current + 1} →
+              </button>
+            )}
           </div>
         </section>
       </div>

@@ -73,7 +73,7 @@ Configuration is read from environment variables (see `backend/app/config.py`):
 
 ```bash
 cd backend && .venv/bin/pytest -q          # 100 tests: API, repository, schemas, scaling
-cd frontend && npm test                    # 21 tests: quantity and yield formatting
+cd frontend && npm test                    # 36 tests: formatting, form errors, components (React Testing Library)
 ```
 
 The frontend Docker build runs `npm test` and the TypeScript check, so a
@@ -82,9 +82,10 @@ broken build won't start.
 ### Browser smoke test
 
 With the stack running, this drives the real UI in headless Chromium. It
-checks search, tag filter, scaling, the edit conflict, validation,
-delete/undo, switching restaurants, and phone width with no horizontal
-scroll. It also saves screenshots.
+checks search, tag filter, scaling, checking off steps, the print layout,
+the edit conflict, inline validation errors, delete confirmation and undo,
+switching restaurants, and phone width with no horizontal scroll. It also
+saves screenshots.
 
 ```bash
 docker run --rm --network host -v "$PWD/e2e":/work -v "$PWD/docs/screenshots":/out -w /work \
@@ -121,6 +122,10 @@ input.
 | Validation errors | Phone, dark mode |
 |---|---|
 | ![Validation](docs/screenshots/validation.png) | ![Phone](docs/screenshots/phone-dark.png) |
+
+| Delete confirmation | Print layout |
+|---|---|
+| ![Delete](docs/screenshots/delete-confirm.png) | ![Print](docs/screenshots/print.png) |
 
 ## Project layout
 

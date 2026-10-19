@@ -43,14 +43,40 @@ make restore API-only.
 > They have asked "When using AI, please send over some of the prompts that
 > you used", so let's keep aside some prompts (simple ones).
 
+## 4. Checking the backend against a stricter brief
+
+> Implement the backend per the approved plan: models, repository layer with
+> tenant scoping, auth stub, endpoints, validation, seed data. Write pytest
+> tests alongside, including a tenant isolation suite, viewer-cannot-edit,
+> 409 on stale version, soft delete/restore, scaling edge cases (0, negative,
+> huge factor), and search with empty/special-character queries. Run the
+> tests and fix failures before stopping.
+
+Claude mapped each item to existing tests and found one gap; I asked it to
+add a test for whitespace-only search.
+
+## 5. Frontend
+
+> Implement the frontend: recipe list with search, cook-mode recipe view
+> (large type, high contrast, tap to check off steps, scale buttons, print
+> stylesheet), create/edit form with validation errors shown inline, delete
+> with confirmation. Add one or two component tests. Keep it simple and
+> readable.
+
+Claude listed what was already built and what was missing. I chose: add a
+delete confirmation, a print stylesheet, inline field errors, tap-to-check
+steps, and component tests with React Testing Library.
+
 ## How the work was checked
 
-- Claude wrote tests alongside the code: 100 backend tests (pytest) and 21
-  frontend tests (vitest).
+- Claude wrote tests alongside the code: 100 backend tests (pytest) and 36
+  frontend tests (vitest and React Testing Library).
 - It ran the full stack with `docker compose` and called the API with
   `curl`: seed data, cross-org 404, scaling, viewer 403, data kept across a
   restart.
 - It drove the UI in headless Chromium (`e2e/smoke_test.py`) and looked at
   the screenshots. That found two UI issues, both fixed: a repeated yield
   label ("20 portion · 20 portions") and the save-conflict banner being off
-  screen.
+  screen. Later, a component test caught ingredient names being read aloud
+  as "1 ½ cuponion" (missing space), and the print screenshot showed
+  checkmarks printing instead of step numbers.

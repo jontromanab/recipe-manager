@@ -65,6 +65,7 @@ button, .button {
 button:disabled { opacity: 0.45; cursor: default; }
 .primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .danger { color: var(--danger); border-color: var(--danger); }
+.danger-solid { background: var(--danger); border-color: var(--danger); color: var(--bg); font-weight: 600; }
 .ghost { background: transparent; border-color: transparent; }
 .selected { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
 input, select, textarea {
@@ -138,7 +139,10 @@ input, select, textarea {
 }
 .ingredient .amount { min-width: 6.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .note { color: var(--muted); }
-.ingredient.done, .step.done { color: var(--done); text-decoration: line-through; }
+.ingredient.done, .step.done { color: var(--done); }
+.ingredient.done > span, .step.done .text { text-decoration: line-through; }
+.step.done .n { display: none; }
+.step.done .num::before { content: "✓"; }
 .ingredient.done .note { color: var(--done); }
 .step { align-items: flex-start; gap: 0.9rem; }
 .step .num, .step-row .num {
@@ -148,12 +152,23 @@ input, select, textarea {
 }
 .step.current { border: 2px solid var(--accent); font-size: 1.35rem; }
 .step.current .num { background: var(--accent); color: var(--accent-text); }
-.step-nav { display: flex; gap: 0.5rem; justify-content: space-between; margin-top: 1rem; }
+.step-nav { display: flex; gap: 0.5rem; justify-content: space-between; align-items: center; margin-top: 1rem; }
+.all-done { font-weight: 700; color: var(--accent); }
+.confirm {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+  padding: 0.5rem 0.75rem; border: 2px solid var(--danger); border-radius: var(--radius);
+  font-weight: 600;
+}
 
 /* Edit form */
 .edit { max-width: 900px; display: grid; gap: 1rem; }
-.edit label { display: grid; gap: 0.25rem; font-weight: 600; align-content: start; }
-.edit label .muted { font-weight: 400; }
+.field { display: grid; gap: 0.25rem; align-content: start; }
+.field label { font-weight: 600; }
+.field label .muted { font-weight: 400; }
+.field-error { color: var(--danger); font-size: 0.95rem; font-weight: 600; }
+.field-error::before { content: "⚠ "; }
+[aria-invalid="true"] { border: 2px solid var(--danger); }
+.edit fieldset.has-error { border-color: var(--danger); }
 .edit fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.6rem; margin: 0; }
 .edit legend { font-weight: 700; padding: 0 0.4rem; }
 .edit fieldset.row { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
@@ -167,4 +182,28 @@ input, select, textarea {
   .ingredient-row .row-actions { grid-column: 1 / -1; justify-content: flex-end; }
   .cook h1 { font-size: 1.8rem; }
   .toolbar { flex-direction: column; }
+}
+
+/* Print: a clean station card. No controls, black on white, nothing struck through. */
+@media print {
+  :root {
+    --bg: #fff; --surface: #fff; --text: #000; --muted: #333; --border: #999; --accent: #000; --accent-soft: #fff;
+  }
+  body { font-size: 12pt; }
+  main { padding: 0; max-width: none; }
+  .topbar, .back, .actions, .scale, .step-nav, .banner { display: none !important; }
+  .cook h1 { font-size: 20pt; }
+  .cook-body { grid-template-columns: 2fr 3fr; gap: 16pt; }
+  .cook-body > section:first-child { position: static; }
+  .ingredient, .step {
+    border: none; padding: 2pt 0; min-height: 0; font-size: 12pt;
+    text-decoration: none !important; color: #000 !important;
+  }
+  .step.current { border: none; font-size: 12pt; }
+  .ingredient > span, .step .text { text-decoration: none !important; }
+  .ingredient .note, .ingredient.done .note { color: #333 !important; }
+  .step.done .n { display: inline; }
+  .step.done .num::before { content: none; }
+  .step .num, .step.current .num { background: none; color: #000; border: 1px solid #000; width: 1.4em; height: 1.4em; }
+  .ingredients li, .steps li { break-inside: avoid; }
 }

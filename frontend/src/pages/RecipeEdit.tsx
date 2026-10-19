@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { useAuth } from "../auth";
 import { parseTags } from "../lib/format";
+import { toFieldErrors, type ErrorDetail, type FieldErrors } from "../lib/formErrors";
 import type { Recipe, RecipeInput } from "../types";
 
 interface IngredientRow {
@@ -52,17 +53,25 @@ function fromRecipe(r: Recipe): FormState {
 }
 
 const num = (s: string) => (s.trim() === "" ? null : Number(s));
+const isBlankRow = (r: IngredientRow) => !(r.name.trim() || r.quantity.trim() || r.unit.trim() || r.note.trim());
 
-function toInput(f: FormState): RecipeInput {
+/** Build the API body, dropping blank rows. Also returns which screen row each sent row came from. */
+function toInput(f: FormState): { data: RecipeInput; ingredientRows: number[]; stepRows: number[] } {
+  const ingredientRows = f.ingredients.flatMap((r, i) => (isBlankRow(r) ? [] : [i]));
+  const stepRows = f.steps.flatMap((s, i) => (s.trim() ? [i] : []));
   return {
-    title: f.title,
-    tags: parseTags(f.tags),
-    yield: { quantity: Number(f.yieldQuantity), unit: f.yieldUnit, portions: num(f.yieldPortions) },
-    // Drop rows the cook left completely blank.
-    ingredients: f.ingredients
-      .filter((r) => r.name.trim() || r.quantity.trim() || r.unit.trim())
-      .map((r) => ({ quantity: num(r.quantity), unit: r.unit || null, name: r.name, note: r.note || null })),
-    steps: f.steps.filter((s) => s.trim()),
+    data: {
+      title: f.title,
+      tags: parseTags(f.tags),
+      yield: { quantity: Number(f.yieldQuantity), unit: f.yieldUnit, portions: num(f.yieldPortions) },
+      ingredients: ingredientRows.map((i) => {
+        const r = f.ingredients[i];
+        return { quantity: num(r.quantity), unit: r.unit || null, name: r.name, note: r.note || null };
+      }),
+      steps: stepRows.map((i) => f.steps[i]),
+    },
+    ingredientRows,
+    stepRows,
   };
 }
 
@@ -73,6 +82,33 @@ function move<T>(list: T[], from: number, to: number): T[] {
   next.splice(to, 0, item);
   return next;
 }
+
+/** A labelled input with its error message underneath. */
+function Field({ label, hint, error, id, children }: {
+  label: string;
+  hint?: string;
+  error?: string;
+  id: string;
+  children: (props: { id: string; "aria-invalid": boolean; "aria-describedby"?: string }) => ReactNode;
+}) {
+  const errorId = `${id}-error`;
+  return (
+    <div className={`field${error ? " has-error" : ""}`}>
+      <label htmlFor={id}>
+        {label} {hint && <span className="muted">{hint}</span>}
+      </label>
+      {children({ id, "aria-invalid": !!error, "aria-describedby": error ? errorId : undefined })}
+      {error && <span id={errorId} className="field-error">{error}</span>}
+    </div>
+  );
+}
+
+const INGREDIENT_COLS: [keyof IngredientRow, string][] = [
+  ["quantity", "Quantity"],
+  ["unit", "Unit"],
+  ["name", "Ingredient"],
+  ["note", "Prep note"],
+];
 
 export default function RecipeEdit() {
   const { id } = useParams();
@@ -85,6 +121,7 @@ export default function RecipeEdit() {
   const [loading, setLoading] = useState(recipeId !== null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     if (recipeId === null) return;
@@ -107,6 +144,7 @@ export default function RecipeEdit() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
   const setRow = (i: number, patch: Partial<IngredientRow>) =>
     set("ingredients", form.ingredients.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const err = (key: string): string | undefined => fieldErrors[key];
 
   const reloadLatest = async () => {
     if (recipeId === null) return;
@@ -120,21 +158,24 @@ export default function RecipeEdit() {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setFieldErrors({});
+    const { data, ingredientRows, stepRows } = toInput(form);
     try {
       const saved =
-        recipeId === null
-          ? await api.createRecipe(toInput(form))
-          : await api.updateRecipe(recipeId, toInput(form), version!);
+        recipeId === null ? await api.createRecipe(data) : await api.updateRecipe(recipeId, data, version!);
       navigate(`/recipes/${saved.id}`);
-    } catch (err) {
-      setError(err as ApiError);
-      window.scrollTo({ top: 0, behavior: "smooth" }); // the error banner is at the top
+    } catch (caught) {
+      const apiError = caught as ApiError;
+      setError(apiError);
+      const details = (apiError.extra?.details as ErrorDetail[] | undefined) ?? [];
+      setFieldErrors(toFieldErrors(details, ingredientRows, stepRows));
+      window.scrollTo({ top: 0, behavior: "smooth" }); // the error summary is at the top
     } finally {
       setSaving(false);
     }
   };
 
-  const details = (error?.extra.details as { loc: (string | number)[]; msg: string }[] | undefined) ?? [];
+  const hasFieldErrors = Object.keys(fieldErrors).length > 0;
 
   return (
     <form className="edit" onSubmit={submit} noValidate>
@@ -150,78 +191,99 @@ export default function RecipeEdit() {
       )}
       {error && error.status !== 409 && (
         <div className="error" role="alert">
-          {error.message}
-          {details.length > 0 && (
-            <ul>
-              {details.map((d, i) => (
-                <li key={i}>
-                  {d.loc.filter((p) => p !== "body").join(" › ")}: {d.msg}
-                </li>
-              ))}
-            </ul>
-          )}
+          {hasFieldErrors ? "Please fix the highlighted fields." : error.message}
         </div>
       )}
 
-      <label>
-        Title
-        <input required value={form.title} onChange={(e) => set("title", e.target.value)} />
-      </label>
+      <Field label="Title" id="title" error={err("title")}>
+        {(p) => <input {...p} value={form.title} onChange={(e) => set("title", e.target.value)} />}
+      </Field>
 
-      <label>
-        <span>Tags <span className="muted">(comma-separated)</span></span>
-        <input value={form.tags} onChange={(e) => set("tags", e.target.value)} placeholder="sauce, cold station" />
-      </label>
+      <Field label="Tags" hint="(comma-separated)" id="tags" error={err("tags")}>
+        {(p) => <input {...p} value={form.tags} onChange={(e) => set("tags", e.target.value)} placeholder="sauce, cold station" />}
+      </Field>
 
       <fieldset className="row">
         <legend>Yield</legend>
-        <label>
-          Amount
-          <input type="number" min="0" step="any" value={form.yieldQuantity} onChange={(e) => set("yieldQuantity", e.target.value)} />
-        </label>
-        <label>
-          Unit
-          <input value={form.yieldUnit} onChange={(e) => set("yieldUnit", e.target.value)} placeholder="quart" />
-        </label>
-        <label>
-          <span>Portions <span className="muted">(optional)</span></span>
-          <input type="number" min="0" step="any" value={form.yieldPortions} onChange={(e) => set("yieldPortions", e.target.value)} />
-        </label>
+        <Field label="Amount" id="yield-quantity" error={err("yield.quantity") ?? err("yield")}>
+          {(p) => <input {...p} type="number" min="0" step="any" value={form.yieldQuantity} onChange={(e) => set("yieldQuantity", e.target.value)} />}
+        </Field>
+        <Field label="Unit" id="yield-unit" error={err("yield.unit")}>
+          {(p) => <input {...p} value={form.yieldUnit} onChange={(e) => set("yieldUnit", e.target.value)} placeholder="quart" />}
+        </Field>
+        <Field label="Portions" hint="(optional)" id="yield-portions" error={err("yield.portions")}>
+          {(p) => <input {...p} type="number" min="0" step="any" value={form.yieldPortions} onChange={(e) => set("yieldPortions", e.target.value)} />}
+        </Field>
       </fieldset>
 
-      <fieldset>
+      <fieldset className={err("ingredients") ? "has-error" : ""}>
         <legend>Ingredients</legend>
-        {form.ingredients.map((row, i) => (
-          <div className="ingredient-row" key={i}>
-            <input aria-label="Quantity" type="number" min="0" step="any" placeholder="Qty" value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} />
-            <input aria-label="Unit" placeholder="Unit" value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} />
-            <input aria-label="Ingredient" placeholder="Ingredient" value={row.name} onChange={(e) => setRow(i, { name: e.target.value })} />
-            <input aria-label="Prep note" placeholder="Prep note" value={row.note} onChange={(e) => setRow(i, { note: e.target.value })} />
-            <div className="row-actions">
-              <button type="button" className="ghost" aria-label="Move up" onClick={() => set("ingredients", move(form.ingredients, i, i - 1))}>↑</button>
-              <button type="button" className="ghost" aria-label="Move down" onClick={() => set("ingredients", move(form.ingredients, i, i + 1))}>↓</button>
-              <button type="button" className="ghost" aria-label="Remove" onClick={() => set("ingredients", form.ingredients.filter((_, j) => j !== i))}>✕</button>
+        {err("ingredients") && <span className="field-error">{err("ingredients")}</span>}
+        {form.ingredients.map((row, i) => {
+          const rowErrors = INGREDIENT_COLS.flatMap(([key, label]) => {
+            const m = err(`ingredients.${i}.${key}`);
+            return m ? [`${label}: ${m}`] : [];
+          });
+          const errorId = `ingredient-${i}-error`;
+          return (
+            <div key={i}>
+              <div className="ingredient-row">
+                {INGREDIENT_COLS.map(([key, label]) => (
+                  <input
+                    key={key}
+                    aria-label={`${label} ${i + 1}`}
+                    placeholder={key === "quantity" ? "Qty" : label}
+                    type={key === "quantity" ? "number" : "text"}
+                    min={key === "quantity" ? "0" : undefined}
+                    step={key === "quantity" ? "any" : undefined}
+                    value={row[key]}
+                    aria-invalid={!!err(`ingredients.${i}.${key}`)}
+                    aria-describedby={err(`ingredients.${i}.${key}`) ? errorId : undefined}
+                    onChange={(e) => setRow(i, { [key]: e.target.value })}
+                  />
+                ))}
+                <div className="row-actions">
+                  <button type="button" className="ghost" aria-label="Move up" onClick={() => set("ingredients", move(form.ingredients, i, i - 1))}>↑</button>
+                  <button type="button" className="ghost" aria-label="Move down" onClick={() => set("ingredients", move(form.ingredients, i, i + 1))}>↓</button>
+                  <button type="button" className="ghost" aria-label="Remove" onClick={() => set("ingredients", form.ingredients.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              </div>
+              {rowErrors.length > 0 && <span id={errorId} className="field-error">{rowErrors.join(" · ")}</span>}
             </div>
-          </div>
-        ))}
+          );
+        })}
         <button type="button" onClick={() => set("ingredients", [...form.ingredients, emptyRow()])}>
           + Add ingredient
         </button>
       </fieldset>
 
-      <fieldset>
+      <fieldset className={err("steps") ? "has-error" : ""}>
         <legend>Steps</legend>
-        {form.steps.map((step, i) => (
-          <div className="step-row" key={i}>
-            <span className="num">{i + 1}</span>
-            <textarea aria-label={`Step ${i + 1}`} rows={2} value={step} onChange={(e) => set("steps", form.steps.map((s, j) => (j === i ? e.target.value : s)))} />
-            <div className="row-actions">
-              <button type="button" className="ghost" aria-label="Move up" onClick={() => set("steps", move(form.steps, i, i - 1))}>↑</button>
-              <button type="button" className="ghost" aria-label="Move down" onClick={() => set("steps", move(form.steps, i, i + 1))}>↓</button>
-              <button type="button" className="ghost" aria-label="Remove" onClick={() => set("steps", form.steps.filter((_, j) => j !== i))}>✕</button>
+        {err("steps") && <span className="field-error">{err("steps")}</span>}
+        {form.steps.map((step, i) => {
+          const stepError = err(`steps.${i}`);
+          return (
+            <div key={i}>
+              <div className="step-row">
+                <span className="num">{i + 1}</span>
+                <textarea
+                  aria-label={`Step ${i + 1}`}
+                  rows={2}
+                  value={step}
+                  aria-invalid={!!stepError}
+                  aria-describedby={stepError ? `step-${i}-error` : undefined}
+                  onChange={(e) => set("steps", form.steps.map((s, j) => (j === i ? e.target.value : s)))}
+                />
+                <div className="row-actions">
+                  <button type="button" className="ghost" aria-label="Move up" onClick={() => set("steps", move(form.steps, i, i - 1))}>↑</button>
+                  <button type="button" className="ghost" aria-label="Move down" onClick={() => set("steps", move(form.steps, i, i + 1))}>↓</button>
+                  <button type="button" className="ghost" aria-label="Remove" onClick={() => set("steps", form.steps.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              </div>
+              {stepError && <span id={`step-${i}-error`} className="field-error">{stepError}</span>}
             </div>
-          </div>
-        ))}
+          );
+        })}
         <button type="button" onClick={() => set("steps", [...form.steps, ""])}>
           + Add step
         </button>
