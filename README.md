@@ -76,8 +76,20 @@ cd backend && .venv/bin/pytest -q          # 100 tests: API, repository, schemas
 cd frontend && npm test                    # 36 tests: formatting, form errors, components (React Testing Library)
 ```
 
-The frontend Docker build runs `npm test` and the TypeScript check, so a
+No local Python or Node? Run the same tests in containers:
+
+```bash
+docker compose run --rm api pytest -q
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/frontend":/app -w /app node:20-alpine sh -c "npm ci && npm test"
+```
+
+The frontend Docker build also runs `npm test` and the TypeScript check, so a
 broken build won't start.
+
+**CI:** `.github/workflows/ci.yml` runs on every push and pull request. It
+runs the backend tests, the frontend tests and typecheck, and then a
+`docker compose up` from a clean state that checks health, seed data, the
+cross-restaurant 404 and that the frontend is served.
 
 ### Browser smoke test
 

@@ -2,24 +2,39 @@
 assignment.md
 ASSIGNMENT.md
 
-# Python
-__pycache__/
-*.pyc
-.venv/
-.pytest_cache/
-*.egg-info/
-
-# Local data
+# Local databases (SQLite file plus its -journal / -wal / -shm side files)
 backend/data/
 *.db
+*.db-*
+*.sqlite
+*.sqlite3
 
-# Node
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
 node_modules/
 frontend/dist/
+*.tsbuildinfo
+.vite/
+coverage/
+npm-debug.log*
 
 # Editors / OS
 .vscode/
 .idea/
 .DS_Store
-.env
-*.tsbuildinfo
