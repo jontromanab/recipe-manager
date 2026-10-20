@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+logger = logging.getLogger("app")
 
 
 class AppError(Exception):
@@ -61,3 +65,9 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_error(_: Request, exc: StarletteHTTPException):
         return JSONResponse(_body("http_error", str(exc.detail)), exc.status_code)
+
+    @app.exception_handler(Exception)
+    async def unexpected_error(request: Request, exc: Exception):
+        # Log the details server-side; never leak them to the client.
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+        return JSONResponse(_body("internal_error", "Something went wrong. Please try again."), 500)

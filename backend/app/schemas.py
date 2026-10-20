@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 MAX_TAGS = 20
 MAX_INGREDIENTS = 200
 MAX_STEPS = 100
+MAX_STEP_LENGTH = 2000
 
 
 class _Base(BaseModel):
@@ -53,6 +54,8 @@ class RecipeIn(_Base):
     def steps_not_blank(cls, steps: list[str]) -> list[str]:
         if any(not s for s in steps):
             raise ValueError("steps must not be blank")
+        if any(len(s) > MAX_STEP_LENGTH for s in steps):
+            raise ValueError(f"each step must be at most {MAX_STEP_LENGTH} characters")
         return steps
 
 

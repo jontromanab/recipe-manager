@@ -192,3 +192,22 @@ def test_seed_is_idempotent(session):
     first = seed(session)
     assert first > 0
     assert seed(session) == 0
+
+
+class TestErrorShape:
+    def test_unknown_route_uses_error_shape(self, client):
+        r = client.get("/api/nope", headers=auth("bistro_viewer"))
+        assert r.status_code == 404 and r.json()["error"]["code"] == "http_error"
+
+    def test_unexpected_error_is_json_500_without_details(self, app):
+        @app.get("/api/boom")
+        def boom():
+            raise RuntimeError("secret internal detail")
+
+        from fastapi.testclient import TestClient
+
+        with TestClient(app, raise_server_exceptions=False) as c:
+            r = c.get("/api/boom")
+        assert r.status_code == 500
+        assert r.json() == {"error": {"code": "internal_error", "message": "Something went wrong. Please try again."}}
+        assert "secret" not in r.text

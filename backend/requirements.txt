@@ -3,3 +3,4 @@ SQLAlchemy==2.1.5
 pydantic==2.14.1
 pydantic-settings==2.16.0
 uvicorn[standard]==0.54.0
+psycopg[binary]==3.2.10  # Postgres driver; unused with the default SQLite

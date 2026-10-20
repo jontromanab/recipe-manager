@@ -33,6 +33,7 @@ def test_blank_unit_becomes_none():
         {"ingredients": []},
         {"steps": []},
         {"steps": ["ok", "  "]},
+        {"steps": ["x" * 2001]},
         {"ingredients": [{"quantity": -1, "unit": "g", "name": "salt"}]},
         {"ingredients": [{"quantity": 0, "unit": "g", "name": "salt"}]},
         {"ingredients": [{"quantity": 1, "unit": "g", "name": ""}]},

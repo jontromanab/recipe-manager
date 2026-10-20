@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -5,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.db import Base
 from app.main import create_app
 
 TOKENS = {
@@ -36,8 +38,17 @@ def recipe_payload(**overrides) -> dict:
 
 @pytest.fixture
 def app():
-    # Fresh in-memory DB per test, no seed data so counts are predictable.
-    return create_app(Settings(database_url="sqlite://", seed_on_startup=False))
+    """Fresh, empty database per test, no seed data so counts are predictable.
+
+    Defaults to in-memory SQLite. Set TEST_DATABASE_URL to run the same suite
+    against another database, e.g. Postgres (tables are dropped after each test).
+    """
+    url = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+    app = create_app(Settings(database_url=url, seed_on_startup=False))
+    yield app
+    if url != "sqlite://":
+        Base.metadata.drop_all(app.state.engine)
+        app.state.engine.dispose()
 
 
 @pytest.fixture

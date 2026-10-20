@@ -79,9 +79,35 @@ Claude cloned the repo fresh from GitHub, built it with no cache, and ran
 every test suite. Nothing broke. It then added the CI workflow, including a
 clean `docker compose up` check, and tightened `.gitignore`.
 
+## 7. Documentation from the code
+
+> Based on the actual code in this repo, write:
+> 1. README.md: one-paragraph summary, prerequisites with versions, exact run
+>    and test commands, URLs, the stub tokens for each seeded user and org, and
+>    a screenshots section with placeholders.
+> 2. docs/DESIGN.md: architecture overview, data model, API, and a decisions
+>    section covering tenant isolation (404 vs 403), right-sizing for 10k
+>    req/day and 1k recipes, SQLite choice, optimistic concurrency, soft
+>    delete, search, scaling, cost/deployment; a testing strategy section; a
+>    "deliberately not built / next steps" section; and what would change at
+>    100x scale.
+> Only describe things that actually exist in the code. Flag anything in the
+> docs that you couldn't verify.
+
+Where it could, Claude checked claims before writing them:
+- It ran the test suite on Postgres 16 to back the "swap by config" claim and
+  added that to CI.
+- It benchmarked 1,000 recipes instead of guessing at latency.
+- It ran every README command.
+
+This turned up two code gaps, which it fixed: unexpected errors returned
+plain text instead of the documented JSON shape, and steps had no length
+limit. Real screenshots were used instead of placeholders. Anything it
+couldn't verify is listed at the end of DESIGN.md.
+
 ## How the work was checked
 
-- Claude wrote tests alongside the code: 100 backend tests (pytest) and 36
+- Claude wrote tests alongside the code: 103 backend tests (pytest, on SQLite and Postgres) and 36
   frontend tests (vitest and React Testing Library).
 - It ran the full stack with `docker compose` and called the API with
   `curl`: seed data, cross-org 404, scaling, viewer 403, data kept across a
