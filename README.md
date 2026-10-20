@@ -35,7 +35,7 @@ Vitest 2.1.
 ## Run
 
 ```bash
-git clone git@github.com:jontromanab/recipe-manager.git
+git clone https://github.com/jontromanab/recipe-manager.git
 cd recipe-manager
 docker compose up --build
 ```
