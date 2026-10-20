@@ -67,6 +67,18 @@ Claude listed what was already built and what was missing. I chose: add a
 delete confirmation, a print stylesheet, inline field errors, tap-to-check
 steps, and component tests with React Testing Library.
 
+## 6. Reviewer pass and CI
+
+> Act as a reviewer who just cloned this repo. Verify docker compose up works
+> from a clean state, seed data loads, and all tests pass. Fix anything that
+> breaks. Add a GitHub Actions workflow that runs backend and frontend tests.
+> Make sure .gitignore excludes local DB files, env files, node_modules and
+> caches.
+
+Claude cloned the repo fresh from GitHub, built it with no cache, and ran
+every test suite. Nothing broke. It then added the CI workflow, including a
+clean `docker compose up` check, and tightened `.gitignore`.
+
 ## How the work was checked
 
 - Claude wrote tests alongside the code: 100 backend tests (pytest) and 36
